@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Workout Analytics</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3498db">
+
+</head>
+<body>
+    <h2>2026 Activity</h2>
+    <a href="view.html" class="page-switch">Back to Logs</a>
+
+    <div class="graph-container">
+        <div class="analytics-wrapper">
+            <div class="day-labels"><span>U</span><span>M</span><span>T</span><span>W</span><span>R</span><span>F</span><span>S</span>
+            </div>
+            
+            <div id="grid" class="contribution-grid"></div>
+            
+        </div>
+    </div>
+
+    <script type="module">
+        import { workoutService } from "./db-service.js";
+
+        async function renderAnalytics() {
+            const grid = document.getElementById("grid");
+            const allData = await workoutService.getAllWorkouts();
+            
+            // Using a Set for efficient gym day lookup
+            const workoutDates = new Set(
+                allData
+                    .filter(d => d.movement === "DAILY_MARKER")
+                    .map(d => new Date(d.date).toDateString())
+            );
+
+            const year = 2026;
+            const startDate = new Date(year, 0, 1);
+            const endDate = new Date(year, 11, 31);
+            
+            // Fill empty squares for the first week until Jan 1st
+            const startDayOffset = startDate.getDay(); // 0 (Sun) to 6 (Sat)
+            for (let i = 0; i < startDayOffset; i++) {
+                const empty = document.createElement("div");
+                // No class, so it stays invisible but takes up space
+                grid.appendChild(empty);
+            }
+
+            // Generate squares for every day of the year
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                const square = document.createElement("div");
+                square.className = "day-square";
+                
+                if (workoutDates.has(d.toDateString())) {
+                    square.classList.add("active");
+                }
+                
+                square.title = d.toDateString();
+                grid.appendChild(square);
+            }
+        }
+
+        renderAnalytics();
+        
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+        
+    </script>
+</body>
+</html>

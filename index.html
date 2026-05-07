@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Workout Log</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="styles.css" />
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3498db">
+
+  </head>
+  <body>
+    <h2>Workout Logger</h2>
+
+    <a href="view.html" class="page-switch">View Logs</a>
+
+    <form id="logForm">
+      <div class="field-container">
+        <input
+          type="search"
+          id="movement"
+          placeholder="Movement"
+          autocomplete="off"
+          required
+        />
+        <div id="suggestions"></div>
+      </div>
+      <input
+        type="number"
+        inputmode="numeric"
+        id="reps"
+        placeholder="Reps"
+        required
+      />
+      <input  
+        type="text"
+        inputmode="decimal"
+        id="weight"
+        placeholder="Weight"
+        step="0.1" 
+        required
+      />
+      <button type="submit">Log Workout</button>
+    </form>
+
+    <p id="response"></p>
+
+    <script type="module">
+      import { officialMovements } from "./movements.js";
+      import { workoutService } from "./db-service.js";
+
+      const form = document.getElementById("logForm");
+      const movementInput = document.getElementById("movement");
+      const repsInput = document.getElementById("reps");
+      const weightInput = document.getElementById("weight");
+      const response = document.getElementById("response");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const enteredMovement = movementInput.value.trim();
+        const weightValue = parseFloat(weightInput.value); // Converts "12.5" back to a float
+
+        if (!officialMovements.includes(enteredMovement)) {
+          response.textContent = "Invalid movement. Please select from the list.";
+          return;
+        }
+
+        try {
+          await workoutService.addWorkout(
+            enteredMovement, 
+            repsInput.value, 
+            weightValue, // Send the cleaned number to Firebase
+          );
+          
+          response.textContent = "Logged";
+          form.reset();
+        } catch (err) {
+          response.textContent = "Error: " + err.message;
+        }
+      });
+
+      // --- Suggestions Logic ---
+      const suggestionsBox = document.getElementById("suggestions");
+
+      movementInput.addEventListener("input", () => {
+        const val = movementInput.value.toLowerCase();
+        suggestionsBox.innerHTML = "";
+        
+        if (!val) {
+          suggestionsBox.style.display = "none";
+          return;
+        }
+
+        // Filter movements from movements.js
+        const filtered = officialMovements.filter(m => m.toLowerCase().includes(val));
+        
+        if (filtered.length > 0) {
+          filtered.forEach(m => {
+            const div = document.createElement("div");
+            div.className = "suggestion-item";
+            div.textContent = m;
+            
+            // When a user clicks a suggestion
+            div.onclick = () => {
+              movementInput.value = m;
+              suggestionsBox.style.display = "none";
+            };
+            suggestionsBox.appendChild(div);
+          });
+          suggestionsBox.style.display = "block";
+        } else {
+          suggestionsBox.style.display = "none";
+        }
+      });
+
+      // Close the suggestions if the user clicks anywhere else
+      window.addEventListener("click", (e) => {
+        if (e.target !== movementInput) {
+          suggestionsBox.style.display = "none";
+        }
+      });
+
+      weightInput.addEventListener("blur", (e) => {
+          let val = e.target.value;
+          if (!val) return;
+
+          // Remove any non-numeric/non-decimal characters
+          let numericVal = parseFloat(val.replace(/[^0-9.]/g, ''));
+
+          if (!isNaN(numericVal)) {
+              // Force the display to exactly one decimal place when you click away
+              e.target.value = numericVal.toFixed(1);
+          }
+      });
+
+      // Optional: Prevent typing multiple decimals
+      weightInput.addEventListener("input", (e) => {
+          e.target.value = e.target.value.replace(/[^0-9.]/g, '');
+          const parts = e.target.value.split('.');
+          if (parts.length > 2) {
+              e.target.value = parts[0] + '.' + parts.slice(1).join('');
+          }
+      });
+
+    </script>
+  </body>
+</html>
